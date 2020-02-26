@@ -13,6 +13,13 @@ PCF8563_Class rtc;
 
 int vref = 1100;
 
+RTC_DATA_ATTR int wakeUpCount = 0;
+RTC_DATA_ATTR bool initStartTime = true;
+RTC_DATA_ATTR uint8_t startDay = 0;
+RTC_DATA_ATTR uint8_t startHour = 0;
+RTC_DATA_ATTR uint8_t startMinute = 0;
+RTC_DATA_ATTR uint8_t startSecond = 0;
+
 void setupADC() {
   esp_adc_cal_characteristics_t adc_chars;
   esp_adc_cal_value_t val_type = esp_adc_cal_characterize((adc_unit_t)ADC_UNIT_1, (adc_atten_t)ADC1_CHANNEL_6,
@@ -47,22 +54,33 @@ void initGPIOs() {
 }
 
 void initScreen() {
+  wakeUpCount++;
   tft.init();
   tft.setRotation(1);
   tft.setSwapBytes(true);
   tft.fillScreen(TFT_BLACK);
 }
 
-void initSensor() {
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-  Wire.setClock(400000);
-  imu.initMPU9250();
-}
+void initSensor() { imu.initMPU9250(); }
 
 void initRTC() {
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+  Wire.setClock(400000);
   rtc.begin(Wire);
-  rtc.check();  // Check if the RTC clock matches, if not, use compile time
 
+  if (initStartTime) {
+    initStartTime = false;
+    rtc.setDateTime(RTC_Date(__DATE__, __TIME__));
+    RTC_Date now = rtc.getDateTime();
+    startDay = now.day;
+    startHour = now.hour;
+    startMinute = now.minute;
+    startSecond = now.second;
+    //   startTime = start.second //
+    //   +start.minute * 60 //
+    //   +start.hour * 60 * 60
+    //   +start.day
+  }
   // RTC_Date datetime = rtc.getDateTime();
   // hh = datetime.hour;
   // mm = datetime.minute;
@@ -91,12 +109,25 @@ void deepSleep() {
 }
 
 void drawTestScreen() {
+  RTC_Date now = rtc.getDateTime();
+  tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
-  tft.drawString("Hello World ", 0, 0);
-  tft.setTextColor(TFT_RED);
-  tft.drawString("Red", 0, 12);
-  tft.setTextColor(TFT_GREEN);
-  tft.drawString("GREEN", 0, 24);
-  tft.setTextColor(TFT_BLUE);
-  tft.drawString("Blue", 0, 36);
+  tft.drawString(String("Started: ") + String(startDay) + "d" + String(startHour) + "h" + String(startMinute) + "m" +
+                     String(startSecond) + "s",
+                 0, 0);
+  tft.drawString(String("Time: ") + String(now.day) + "d  " + String(now.hour) + ":" + String(now.minute) + ":" +
+                     String(now.second),
+                 0, 12);
+  tft.drawString(String("Uptime: ") + String(now.day - startDay) + "d" + String(now.hour - startHour) + "h" +
+                     String(now.minute - startMinute) + "m" + String(now.second - startSecond) + "s",
+                 0, 24);
+  tft.drawString(String("Wakeups: ") + String(wakeUpCount), 0, 36);
+
+  uint16_t v = analogRead(BATT_ADC_PIN);
+  float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
+  tft.drawString(String("Voltage: ") + String(battery_voltage), 0, 48);
+
+  if (digitalRead(CHARGE_PIN) == LOW) {
+    tft.drawString(String("Charging..."), 0, 60);
+  }
 }

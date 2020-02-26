@@ -3,21 +3,21 @@
 #include "util.h"
 
 void setup() {
+  initRTC();
   disableRadios();
   setLowCPUSpeed();
   initGPIOs();
-  initRTC();
   initSensor();
   initScreen();
 }
 
 void loop() {
   drawTestScreen();
+  delay(4000);
+  deepSleep();
 
-  delay(250);
-
-  if (digitalRead(TP_PIN_PIN) == HIGH) {
-    delay(1000);
-    deepSleep();
-  }
+  // if (digitalRead(TP_PIN_PIN) == HIGH) {
+  //   delay(1000);
+  //   deepSleep();
+  // }
 }
