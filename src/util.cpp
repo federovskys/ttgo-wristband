@@ -3,6 +3,7 @@
 #include <TFT_eSPI.h>
 #include <WiFi.h>
 #include <Wire.h>
+#include <esp32-hal-cpu.h>
 #include <esp_adc_cal.h>
 #include <pcf8563.h>
 
@@ -71,6 +72,14 @@ void initRTC() {
 void disableRadios() {
   WiFi.mode(WIFI_OFF);
   btStop();
+}
+
+void setLowCPUSpeed() {
+  // https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/esp32-hal-cpu.h
+  // ESP32 PICO D4 -> https://docs.espressif.com/projects/esp-idf/en/latest/hw-reference/get-started-pico-kit.html
+  // -> 40MHz Oscillator
+  // //  240, 160, 80, 40, 20, 10  <<< For 40MHz XTAL
+  setCpuFrequencyMhz(10);
 }
 
 void deepSleep() {

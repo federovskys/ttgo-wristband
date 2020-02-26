@@ -15,8 +15,11 @@
 #define LED_PIN 4
 #define CHARGE_PIN 32
 
+void setLowCPUSpeed();
+
 void initGPIOs();
 void initRTC();
+void initSensor();
 void initScreen();
 
 void disableRadios();

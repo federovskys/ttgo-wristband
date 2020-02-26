@@ -4,7 +4,10 @@
 
 void setup() {
   disableRadios();
+  setLowCPUSpeed();
   initGPIOs();
+  initRTC();
+  initSensor();
   initScreen();
 }
 
