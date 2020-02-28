@@ -197,5 +197,9 @@ void drawInfoRow() {
   }
 }
 
-bool isCharging() { return digitalRead(CHARGE_PIN) == LOW; }
+bool isCharging() {
+  return digitalRead(CHARGE_PIN) == LOW;
+  wakeUpCount = 0;
+}
+
 bool isButtonDown() { return digitalRead(TP_PIN_PIN) == HIGH; }
