@@ -31,6 +31,7 @@ void clearScreen();
 void drawDateRow();
 void drawTime();
 void drawInfoRow();
+void drawCompass();
 
 bool isCharging();
 bool isButtonDown();

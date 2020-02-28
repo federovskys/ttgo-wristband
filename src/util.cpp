@@ -6,6 +6,7 @@
 #include <esp32-hal-cpu.h>
 #include <esp_adc_cal.h>
 #include <pcf8563.h>
+#include "sensor.h"
 
 #define FONT_TIME "SourceCodePro-Regular-48"
 #define FONT_TIME_PATH "/SourceCodePro-Regular-48.vlw"
@@ -13,7 +14,7 @@ bool hasFontTime = false;
 
 #define FONT_SIZE_16 "SourceCodePro-Regular-16"
 #define FONT_SIZE_16_PATH "/SourceCodePro-Regular-16.vlw"
-bool hasFontSize12 = false;
+bool hasFontSize16 = false;
 
 TFT_eSPI tft = TFT_eSPI();
 MPU9250 imu;
@@ -95,7 +96,11 @@ void initGPIOs() {
   pinMode(LED_PIN, OUTPUT);
 }
 
-void initSensor() { imu.initMPU9250(); }
+void initSensor() {
+  imu.calibrateMPU9250(imu.gyroBias, imu.accelBias);
+  imu.initMPU9250();
+  imu.initAK8963(imu.magCalibration);
+}
 
 void initScreen() {
   wakeUpCount++;
@@ -107,7 +112,7 @@ void initScreen() {
     hasFontTime = true;
   }
   if (SPIFFS.exists(FONT_SIZE_16_PATH)) {
-    hasFontSize12 = true;
+    hasFontSize16 = true;
   }
 }
 
@@ -155,7 +160,7 @@ void drawTime() {
 
 void drawDateRow() {
   RTC_Date now = rtc.getDateTime();
-  if (hasFontSize12) {
+  if (hasFontSize16) {
     tft.loadFont(FONT_SIZE_16);
   }
 
@@ -166,13 +171,13 @@ void drawDateRow() {
   tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
   tft.drawString(yyyy + "-" + mm + "-" + dd, 31, 2);
 
-  if (hasFontSize12) {
+  if (hasFontSize16) {
     tft.unloadFont();
   }
 }
 
 void drawInfoRow() {
-  if (hasFontSize12) {
+  if (hasFontSize16) {
     tft.loadFont(FONT_SIZE_16);
   }
 
@@ -192,7 +197,26 @@ void drawInfoRow() {
   tft.drawString(voltage, 0, 64);
   tft.drawString(wakeups, 128, 64);
 
-  if (hasFontSize12) {
+  if (hasFontSize16) {
+    tft.unloadFont();
+  }
+}
+
+void drawCompass() {
+  readMPU9250(&imu);
+
+  if (hasFontSize16) {
+    tft.loadFont(FONT_SIZE_16);
+  }
+  tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+  String x = String(imu.mx, 1);
+  String y = String(imu.my, 1);
+  String z = String(imu.mz, 1);
+  tft.drawString(x, 64, 16);
+  tft.drawString(y, 64, 40);
+  tft.drawString(z, 64, 64);
+
+  if (hasFontSize16) {
     tft.unloadFont();
   }
 }
