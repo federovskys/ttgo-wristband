@@ -3,21 +3,23 @@
 #include "util.h"
 
 void setup() {
-  initRTC();
-  disableRadios();
-  setLowCPUSpeed();
-  initGPIOs();
-  initSensor();
-  initScreen();
+  setupWatch();
+  clearScreen();
 }
 
 void loop() {
-  drawTestScreen();
-  delay(4000);
-  deepSleep();
+  drawDateRow();
+  drawTime();
+  drawInfoRow();
+  // setMinCPUSpeed();
 
-  // if (digitalRead(TP_PIN_PIN) == HIGH) {
-  //   delay(1000);
-  //   deepSleep();
-  // }
+  long started = millis();
+  while (millis() - started < 3000 || digitalRead(TP_PIN_PIN) == HIGH) {
+    digitalWrite(LED_PIN, digitalRead(TP_PIN_PIN));
+    // keep screen on for 3s or as long as the finger is on the touch button
+    delay(250);
+    drawInfoRow();
+  }
+
+  deepSleep();
 }

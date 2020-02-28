@@ -15,8 +15,10 @@
 #define LED_PIN 4
 #define CHARGE_PIN 32
 
-void setLowCPUSpeed();
+void setMinCPUSpeed();
+void setMaxCPUSpeed();
 
+void setupWatch();
 void initGPIOs();
 void initRTC();
 void initSensor();
@@ -25,5 +27,12 @@ void initScreen();
 void disableRadios();
 void deepSleep();
 
-void drawTestScreen();
+void clearScreen();
+void drawDateRow();
+void drawTime();
+void drawInfoRow();
+
+bool isCharging();
+bool isButtonDown();
+
 #endif

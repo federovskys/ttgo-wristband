@@ -7,6 +7,14 @@
 #include <esp_adc_cal.h>
 #include <pcf8563.h>
 
+#define FONT_TIME "SourceCodePro-Regular-48"
+#define FONT_TIME_PATH "/SourceCodePro-Regular-48.vlw"
+bool hasFontTime = false;
+
+#define FONT_SIZE_16 "SourceCodePro-Regular-16"
+#define FONT_SIZE_16_PATH "/SourceCodePro-Regular-16.vlw"
+bool hasFontSize12 = false;
+
 TFT_eSPI tft = TFT_eSPI();
 MPU9250 imu;
 PCF8563_Class rtc;
@@ -19,6 +27,40 @@ RTC_DATA_ATTR uint8_t startDay = 0;
 RTC_DATA_ATTR uint8_t startHour = 0;
 RTC_DATA_ATTR uint8_t startMinute = 0;
 RTC_DATA_ATTR uint8_t startSecond = 0;
+
+void setupWatch() {
+  Serial.begin(115200);
+  SPIFFS.begin();
+  initRTC();
+  disableRadios();
+  initGPIOs();
+  initSensor();
+  initScreen();
+}
+
+void initRTC() {
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+  Wire.setClock(400000);
+  rtc.begin(Wire);
+
+  if (initStartTime) {
+    initStartTime = false;
+    rtc.setDateTime(RTC_Date(__DATE__, __TIME__));
+    RTC_Date now = rtc.getDateTime();
+    startDay = now.day;
+    startHour = now.hour;
+    startMinute = now.minute;
+    startSecond = now.second;
+    //   startTime = start.second //
+    //   +start.minute * 60 //
+    //   +start.hour * 60 * 60
+    //   +start.day
+  }
+  // RTC_Date datetime = rtc.getDateTime();
+  // hh = datetime.hour;
+  // mm = datetime.minute;
+  // ss = datetime.second;
+}
 
 void setupADC() {
   esp_adc_cal_characteristics_t adc_chars;
@@ -53,38 +95,20 @@ void initGPIOs() {
   pinMode(LED_PIN, OUTPUT);
 }
 
+void initSensor() { imu.initMPU9250(); }
+
 void initScreen() {
   wakeUpCount++;
   tft.init();
   tft.setRotation(1);
   tft.setSwapBytes(true);
-  tft.fillScreen(TFT_BLACK);
-}
 
-void initSensor() { imu.initMPU9250(); }
-
-void initRTC() {
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-  Wire.setClock(400000);
-  rtc.begin(Wire);
-
-  if (initStartTime) {
-    initStartTime = false;
-    rtc.setDateTime(RTC_Date(__DATE__, __TIME__));
-    RTC_Date now = rtc.getDateTime();
-    startDay = now.day;
-    startHour = now.hour;
-    startMinute = now.minute;
-    startSecond = now.second;
-    //   startTime = start.second //
-    //   +start.minute * 60 //
-    //   +start.hour * 60 * 60
-    //   +start.day
+  if (SPIFFS.exists(FONT_TIME_PATH)) {
+    hasFontTime = true;
   }
-  // RTC_Date datetime = rtc.getDateTime();
-  // hh = datetime.hour;
-  // mm = datetime.minute;
-  // ss = datetime.second;
+  if (SPIFFS.exists(FONT_SIZE_16_PATH)) {
+    hasFontSize12 = true;
+  }
 }
 
 void disableRadios() {
@@ -92,7 +116,8 @@ void disableRadios() {
   btStop();
 }
 
-void setLowCPUSpeed() {
+void setMaxCPUSpeed() { setCpuFrequencyMhz(240); }
+void setMinCPUSpeed() {
   // https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/esp32-hal-cpu.h
   // ESP32 PICO D4 -> https://docs.espressif.com/projects/esp-idf/en/latest/hw-reference/get-started-pico-kit.html
   // -> 40MHz Oscillator
@@ -108,26 +133,69 @@ void deepSleep() {
   esp_deep_sleep_start();
 }
 
-void drawTestScreen() {
+void clearScreen() { tft.fillScreen(TFT_BLACK); }
+
+void drawTime() {
   RTC_Date now = rtc.getDateTime();
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.drawString(String("Started: ") + String(startDay) + "d" + String(startHour) + "h" + String(startMinute) + "m" +
-                     String(startSecond) + "s",
-                 0, 0);
-  tft.drawString(String("Time: ") + String(now.day) + "d  " + String(now.hour) + ":" + String(now.minute) + ":" +
-                     String(now.second),
-                 0, 12);
-  tft.drawString(String("Uptime: ") + String(now.day - startDay) + "d" + String(now.hour - startHour) + "h" +
-                     String(now.minute - startMinute) + "m" + String(now.second - startSecond) + "s",
-                 0, 24);
-  tft.drawString(String("Wakeups: ") + String(wakeUpCount), 0, 36);
+
+  if (hasFontTime) {
+    tft.loadFont(FONT_TIME);
+  }
+
+  String hh = now.hour < 10 ? "0" + String(now.hour) : String(now.hour);
+  String mm = now.minute < 10 ? "0" + String(now.minute) : String(now.minute);
+
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString(hh + ":" + mm, 9, 20);
+
+  if (hasFontTime) {
+    tft.unloadFont();
+  }
+}
+
+void drawDateRow() {
+  RTC_Date now = rtc.getDateTime();
+  if (hasFontSize12) {
+    tft.loadFont(FONT_SIZE_16);
+  }
+
+  String yyyy = String(now.year);
+  String mm = now.month < 10 ? "0" + String(now.month) : String(now.month);
+  String dd = now.day < 10 ? "0" + String(now.day) : String(now.day);
+
+  tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+  tft.drawString(yyyy + "-" + mm + "-" + dd, 31, 2);
+
+  if (hasFontSize12) {
+    tft.unloadFont();
+  }
+}
+
+void drawInfoRow() {
+  if (hasFontSize12) {
+    tft.loadFont(FONT_SIZE_16);
+  }
 
   uint16_t v = analogRead(BATT_ADC_PIN);
   float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
-  tft.drawString(String("Voltage: ") + String(battery_voltage), 0, 48);
+  String voltage = String(battery_voltage, 2) + "V";
 
-  if (digitalRead(CHARGE_PIN) == LOW) {
-    tft.drawString(String("Charging..."), 0, 60);
+  if (isCharging()) {
+    voltage = voltage + " CHG";
+  } else {
+    voltage = voltage + "    ";
+  }
+
+  String wakeups = (wakeUpCount < 100 ? (wakeUpCount < 10 ? "00" : "0") : "") + String(wakeUpCount);
+
+  tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+  tft.drawString(voltage, 0, 64);
+  tft.drawString(wakeups, 128, 64);
+
+  if (hasFontSize12) {
+    tft.unloadFont();
   }
 }
+
+bool isCharging() { return digitalRead(CHARGE_PIN) == LOW; }
+bool isButtonDown() { return digitalRead(TP_PIN_PIN) == HIGH; }
